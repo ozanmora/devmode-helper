@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bildirim ikonu: sadece alfa kullanılır, renk sistemden gelir. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="60" android:viewportHeight="60">
+    <group android:translateX="-24" android:translateY="-24">
+        <path
+            android:pathData="M41,39 L28,54 L41,69 M67,39 L80,54 L67,69"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="6.5"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path
+            android:pathData="M58,33 L45,57 L53.5,57 L50,75 L63,50 L54.5,50 Z"
+            android:fillColor="#FFFFFFFF" android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5" android:strokeLineJoin="round" />
+    </group>
+</vector>

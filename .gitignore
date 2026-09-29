@@ -1,0 +1,19 @@
+# Derleme çıktısı
+build/
+*.apk
+*.aab
+*.dex
+
+# İmza anahtarları ve yerel ayarlar asla repoya girmez
+*.keystore
+*.jks
+*.p12
+*.pem
+local.properties
+.env*
+
+# IDE / işletim sistemi
+.idea/
+*.iml
+.vscode/
+.DS_Store

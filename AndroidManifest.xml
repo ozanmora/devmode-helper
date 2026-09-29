@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="works.mora.devmode"
+    android:versionCode="9"
+    android:versionName="1.8">
+
+    <uses-sdk android:minSdkVersion="34" android:targetSdkVersion="36" />
+
+    <!-- Sadece adb ile verilebilir: adb shell pm grant works.mora.devmode android.permission.WRITE_SECURE_SETTINGS -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Kablosuz hata ayıklama sayfası: Wi-Fi IP adresi. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Sadece kablosuz hata ayıklama portu için: NsdManager (yerel mDNS) INTERNET iznini şart koşuyor ve
+         bulunan port telefonun kendi IP'sinde yoklanıyor. Uygulama hiçbir dış sunucuya bağlanmaz. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="DevMode Helper"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@android:style/Theme.DeviceDefault.DayNight"
+        android:allowBackup="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".WirelessDebuggingActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".ModeWatchJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- BOOT_COMPLETED ve MY_PACKAGE_REPLACED korumalı yayınlar; başka uygulama taklit edemez. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Durum bildiriminin "Kapat" düğmesi ve yeniden gösterilmesi; sadece kendi PendingIntent'lerimiz. -->
+        <receiver
+            android:name=".StatusReceiver"
+            android:exported="false" />
+    </application>
+</manifest>
