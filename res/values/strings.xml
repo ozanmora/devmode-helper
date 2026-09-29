@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Test uygulamaları</string>
+    <string name="widget_empty">adb ile yüklenen uygulama yok</string>
+    <string name="widget_description">USB veya kablosuz hata ayıklama (adb) ile yüklediğin uygulamaları listeler</string>
+    <string name="widget_refresh">Yenile</string>
+</resources>

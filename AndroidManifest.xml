@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="works.mora.devmode"
-    android:versionCode="10"
-    android:versionName="1.9.0">
+    android:versionCode="11"
+    android:versionName="1.10.0">
 
     <uses-sdk android:minSdkVersion="34" android:targetSdkVersion="36" />
 
@@ -15,6 +15,14 @@
     <!-- Sadece kablosuz hata ayıklama portu için: NsdManager (yerel mDNS) INTERNET iznini şart koşuyor ve
          bulunan port telefonun kendi IP'sinde yoklanıyor. Uygulama hiçbir dış sunucuya bağlanmaz. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Widget: başlatılabilir uygulamaları görmek için (QUERY_ALL_PACKAGES yerine dar kapsam). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:label="DevMode Helper"
@@ -51,6 +59,33 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- "Test uygulamaları" widget'ı. Dışa açık olması APPWIDGET_UPDATE için gerekli; özel
+             REFRESH_DEV_APPS eylemi sadece listeyi yeniler. -->
+        <receiver
+            android:name=".DevAppsWidget"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dev_apps_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".LaunchActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".DevAppsJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- Durum bildiriminin "Kapat" düğmesi ve yeniden gösterilmesi; sadece kendi PendingIntent'lerimiz. -->
         <receiver

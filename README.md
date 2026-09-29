@@ -37,7 +37,11 @@ birleştirir: geliştirme sırasında her şey açık, bitince her şey kapalı.
   dokununca uygulama açılır, "Kapat" düğmesi hepsini kapatır.
 - **Kablosuz hata ayıklama sayfası**: IP adresi ve bağlantı noktası (telefonun kendi adb mDNS duyurusundan),
   kopyalanabilir `adb connect` komutu, eşleştirme için sistem ekranına kısayol.
-- One UI ayar ekranı görünümü, açık/koyu tema, tematik ikon desteği.
+- **"Test uygulamaları" widget'ı**: adb (USB/Wi‑Fi) ile yüklediğin uygulamaları ikonlarıyla listeler;
+  dokununca açılır. Android belirli bir ana ekran sayfasına ikon koymaya izin vermediği için widget'ı bir kez
+  istediğin sayfaya (ör. 3. sayfa) koyarsın, yeni kurulan uygulamalar orada görünür.
+- One UI ayar ekranı görünümü (anahtar ölçü ve renkleri Samsung'un kendi kaynaklarından), açık/koyu tema,
+  tematik ikon desteği.
 
 ## Gereksinimler
 
@@ -65,6 +69,21 @@ birleştirir: geliştirme sırasında her şey açık, bitince her şey kapalı.
 5. Ayarlar › Uygulamalar › DevMode Helper › Pil › **Kısıtlanmamış** seç (arka plandaki tetikleme gecikmesin).
 6. (Samsung) Modlar ve Rutinler'de bir mod oluştur, adını uygulamadaki "İzlenen Samsung modu" ile aynı yap.
    Ekran zaman aşımı gibi Samsung'un kendi desteklediği ayarları modun içine ekleyebilirsin.
+
+## Test uygulamaları widget'ı
+
+1. Uygulamada **Ana ekran › Test uygulamaları widget'ı**'na dokun ve widget'ı ekle
+   (ya da ana ekrana uzun bas › Widget'lar › DevMode Helper).
+2. Widget'ı istediğin sayfaya taşı.
+3. adb ile kurulan uygulamalar otomatik listelenir. Liste başlıktaki yenile düğmesiyle, 15 dakikada bir,
+   DevMode Helper açıldığında ya da bilgisayardan şu komutla yenilenir:
+   ```bash
+   adb shell am broadcast -n works.mora.devmode/.DevAppsWidget -a works.mora.devmode.REFRESH_DEV_APPS
+   ```
+
+adb kurulumu, kurucu paketi olmamasından (`InstallSourceInfo.getInstallingPackageName() == null`) tanınır;
+sistem uygulamaları hariçtir. Android 8'den beri "paket eklendi" yayını arka plandaki uygulamalara
+iletilmediği için yeni kurulum anında değil, yukarıdaki yenilemelerle görünür.
 
 ## Nasıl çalışır
 

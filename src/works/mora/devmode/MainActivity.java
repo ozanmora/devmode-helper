@@ -27,7 +27,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
 
     private OneUi ui;
-    private OneUi.Row master, syncRow, modeNameRow, autoBlockerRow, permissionRow;
+    private OneUi.Row master, syncRow, modeNameRow, autoBlockerRow, permissionRow, widgetRow;
     private final Map<Reconciler.Item, OneUi.Row> itemRows = new EnumMap<>(Reconciler.Item.class);
     private final Map<Reconciler.Item, CompoundButton.OnCheckedChangeListener> itemListeners =
             new EnumMap<>(Reconciler.Item.class);
@@ -78,6 +78,13 @@ public class MainActivity extends Activity {
         ui.addRows(autoCard, syncRow, modeNameRow);
         content.addView(autoCard, ui.cardParams(0));
 
+        content.addView(ui.category("Ana ekran"));
+        LinearLayout homeCard = ui.card();
+        widgetRow = ui.row("Test uygulamaları widget'ı", false, false);
+        widgetRow.view.setOnClickListener(v -> pinWidget());
+        ui.addRows(homeCard, widgetRow);
+        content.addView(homeCard, ui.cardParams(0));
+
         securityHeader = ui.category("Güvenlik");
         content.addView(securityHeader);
         LinearLayout securityCard = ui.card();
@@ -110,6 +117,7 @@ public class MainActivity extends Activity {
         ModeWatchJob.schedule(this);
         Reconciler.onSystemChange(this, "uygulama açıldı");
         Reconciler.updateStatusNotification(this);
+        DevAppsWidget.refresh(this);
         for (String k : new String[]{Reconciler.KEY_MODE_ENABLED, Reconciler.KEY_MODE_NAME}) {
             getContentResolver().registerContentObserver(Settings.Global.getUriFor(k), false, observer);
         }
@@ -203,6 +211,13 @@ public class MainActivity extends Activity {
             autoBlockerRow.summary.setTextColor(ab == null ? ui.warn : abOn ? ui.accent : ui.textSecondary);
         }
 
+        int devApps = DevApps.list(this).size();
+        widgetRow.summary.setText(DevAppsWidget.hasWidgets(this)
+                ? "Ana ekranda · " + devApps + " uygulama listeleniyor"
+                : "adb ile yüklediğin uygulamaları ana ekranda listeler · Eklemek için dokun, "
+                + "sonra istediğin sayfaya taşı");
+        widgetRow.summary.setTextColor(DevAppsWidget.hasWidgets(this) ? ui.accent : ui.textSecondary);
+
         boolean perm = Reconciler.canWriteSecureSettings(this);
         permissionRow.summary.setText(perm ? "Verildi"
                 : "Verilmedi · Bilgisayarda çalıştır:\nadb shell pm grant " + getPackageName()
@@ -238,6 +253,16 @@ public class MainActivity extends Activity {
                     render();
                 })
                 .show();
+    }
+
+    private void pinWidget() {
+        android.appwidget.AppWidgetManager mgr = android.appwidget.AppWidgetManager.getInstance(this);
+        if (mgr.isRequestPinAppWidgetSupported()) {
+            mgr.requestPinAppWidget(new android.content.ComponentName(this, DevAppsWidget.class), null, null);
+        } else {
+            android.widget.Toast.makeText(this, "Ana ekrana uzun bas › Widget'lar › DevMode Helper",
+                    android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private void openAutoBlocker() {

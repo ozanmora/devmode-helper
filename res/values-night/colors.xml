@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Samsung One UI jetonları (koyu tema): surface gray_95, on_surface gray_01, primary_40 -->
+<resources>
+    <color name="widget_bg">#FF17171A</color>
+    <color name="widget_text">#FFFCFCFF</color>
+    <color name="widget_text_secondary">#FF9A9A9F</color>
+    <color name="widget_accent">#FF578FFF</color>
+</resources>
