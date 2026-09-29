@@ -81,6 +81,12 @@ birleştirir: geliştirme sırasında her şey açık, bitince her şey kapalı.
    adb shell am broadcast -n works.mora.devmode/.DevAppsWidget -a works.mora.devmode.REFRESH_DEV_APPS
    ```
 
+> **`adb: more than one device/emulator` hatası:** Telefon hem USB hem kablosuz hata ayıklamayla bağlıysa
+> adb bunları iki ayrı cihaz görür. Bu README'deki tüm adb komutlarında hangisine gideceğini belirt:
+> `adb -d …` USB'deki tek cihaza gönderir, `adb -s <seri> …` belirli bir cihaza gönderir (seri `adb devices`
+> listesinde yazar). Sürekli aynı telefonla çalışıyorsan `export ANDROID_SERIAL=<seri>` ile varsayılan cihazı
+> ayarlayabilirsin.
+
 adb kurulumu, kurucu paketi olmamasından (`InstallSourceInfo.getInstallingPackageName() == null`) tanınır;
 sistem uygulamaları hariçtir. Android 8'den beri "paket eklendi" yayını arka plandaki uygulamalara
 iletilmediği için yeni kurulum anında değil, yukarıdaki yenilemelerle görünür.
