@@ -27,14 +27,17 @@ import android.widget.TextView;
 
 /**
  * One UI ayar ekranı yapı taşları: büyük başlık (kaydırınca araç çubuğuna küçülür), yuvarlak köşeli
- * kartlar, ana anahtar çubuğu, satırlar ve One UI tarzı anahtarlar. Renkler göz kararı, resmi palet değil.
+ * kartlar, ana anahtar çubuğu, satırlar ve One UI tarzı anahtarlar.
+ *
+ * Renkler ve anahtar ölçüleri Samsung Ayarlar uygulamasının (One UI 8.5) kendi kaynaklarından alındı:
+ * basic_token_* renk jetonları ve sesl_switch_* çizimleri (hap 32x20dp, topuz 16dp + 2dp halka).
  */
 final class OneUi {
 
     final Activity a;
     final boolean night;
     final int pageBg, cardBg, textPrimary, textSecondary, accent, warn, masterOnBg, divider, ripple;
-    private final int switchOffTrack, switchOffStroke;
+    private final int switchOffTrack, switchThumb;
 
     private ScrollView scroll;
     private TextView toolbarTitle, bigTitle, bigSubtitle;
@@ -45,30 +48,29 @@ final class OneUi {
         night = (a.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
         if (night) {
-            pageBg = Color.parseColor("#000000");
-            cardBg = Color.parseColor("#171717");
-            textPrimary = Color.parseColor("#FAFAFA");
-            textSecondary = Color.parseColor("#9A9A9A");
-            accent = Color.parseColor("#3E91FF");
+            pageBg = Color.parseColor("#010102");        // background_dark = gray_100
+            cardBg = Color.parseColor("#17171A");        // surface_dark = gray_95
+            textPrimary = Color.parseColor("#FCFCFF");   // on_surface_container_highest_dark = gray_01
+            textSecondary = Color.parseColor("#9A9A9F");
+            accent = Color.parseColor("#578FFF");        // primary_40
             warn = Color.parseColor("#FF6B6B");
-            masterOnBg = Color.parseColor("#1B2A45");
-            divider = Color.parseColor("#2C2C2C");
+            masterOnBg = Color.parseColor("#3A3A3D");    // switchbar on = surface_container_dark = gray_80
+            divider = Color.parseColor("#3A3A3D");
             ripple = Color.parseColor("#33FFFFFF");
-            switchOffTrack = Color.parseColor("#2A2A2A");
-            switchOffStroke = Color.parseColor("#8A8A8A");
+            switchOffTrack = Color.parseColor("#636368"); // switch_track_off_dark = gray_60
         } else {
-            pageBg = Color.parseColor("#F6F6F6");
-            cardBg = Color.parseColor("#FFFFFF");
-            textPrimary = Color.parseColor("#1A1A1A");
-            textSecondary = Color.parseColor("#737373");
-            accent = Color.parseColor("#0A6CF5");
+            pageBg = Color.parseColor("#F1F1F3");        // background_light = gray_05
+            cardBg = Color.parseColor("#FCFCFF");        // surface_light = gray_01
+            textPrimary = Color.parseColor("#010102");   // on_surface_container_highest_light = gray_100
+            textSecondary = Color.parseColor("#737378");
+            accent = Color.parseColor("#387AFF");        // primary_50
             warn = Color.parseColor("#D93025");
-            masterOnBg = Color.parseColor("#DDE9FD");
-            divider = Color.parseColor("#E6E6E6");
+            masterOnBg = Color.parseColor("#E4E4E7");    // switchbar on = surface_container_light = gray_15
+            divider = Color.parseColor("#E4E4E7");
             ripple = Color.parseColor("#1F000000");
-            switchOffTrack = Color.parseColor("#F2F2F2");
-            switchOffStroke = Color.parseColor("#9E9E9E");
+            switchOffTrack = Color.parseColor("#A3A3A7"); // switch_track_off = gray_40
         }
+        switchThumb = Color.parseColor("#FCFCFF");        // switch_thumb = gray_01 (iki temada da)
     }
 
     /** Sayfa iskeleti; içerik eklenecek dikey LinearLayout'u döndürür. back=null ise geri düğmesi olmaz. */
@@ -266,34 +268,33 @@ final class OneUi {
         return new Row(bar, texts, t, new TextView(a), sw);
     }
 
+    /** One UI ana anahtar çubuğu: açıkken nötr gri zemin ve mavi yazı, kapalıyken kart rengi. */
     void setMasterState(Row bar, boolean on, String label) {
         bar.title.setText(label);
+        bar.title.setTextColor(on ? accent : textPrimary);
         GradientDrawable bg = rounded(on ? masterOnBg : cardBg);
         bar.view.setBackground(new RippleDrawable(ColorStateList.valueOf(ripple), bg, null));
     }
 
-    /** One UI anahtarı: açıkken dolu mavi hap + beyaz topuz, kapalıyken gri çerçeve. */
+    /**
+     * One UI anahtarı (sesl_switch): 32x20dp dolu hap, uçlardan 2dp içeride 16dp topuz.
+     * Android Switch genişliği en az 2 x topuz genişliği + track padding'i alır; 32dp'yi tutturmak için
+     * track'e 4dp yatay padding, topuza 12dp mantıksal genişlik verilir ve 16dp nokta iki yandan 2dp taşar.
+     */
     void style(Switch sw) {
-        int h = dp(24), w = dp(42), inset = dp(3);
+        int w = dp(32), h = dp(20), dot = dp(16), pad = dp(4), overhang = dp(2), gap = (h - dot) / 2;
 
         StateListDrawable track = new StateListDrawable();
-        track.addState(new int[]{android.R.attr.state_checked}, pill(accent, 0, 0, w, h));
-        track.addState(new int[]{}, pill(switchOffTrack, dp(2), switchOffStroke, w, h));
+        track.addState(new int[]{android.R.attr.state_checked}, pill(accent, w, h, pad));
+        track.addState(new int[]{}, pill(switchOffTrack, w, h, pad));
 
-        GradientDrawable thumbOn = new GradientDrawable();
-        thumbOn.setShape(GradientDrawable.OVAL);
-        thumbOn.setColor(Color.WHITE);
-        thumbOn.setSize(h - inset * 2, h - inset * 2);
-        GradientDrawable thumbOff = new GradientDrawable();
-        thumbOff.setShape(GradientDrawable.OVAL);
-        thumbOff.setColor(night ? Color.parseColor("#2A2A2A") : Color.WHITE);
-        thumbOff.setStroke(dp(2), switchOffStroke);
-        thumbOff.setSize(h - inset * 2, h - inset * 2);
-        // InsetDrawable padding bildirir, Switch bunu topuz konumuna ekleyip topuzu kırpıyordu;
-        // LayerDrawable boşluğu padding'siz verir.
-        StateListDrawable thumb = new StateListDrawable();
-        thumb.addState(new int[]{android.R.attr.state_checked}, inset(thumbOn, inset));
-        thumb.addState(new int[]{}, inset(thumbOff, inset));
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(switchThumb);
+        circle.setSize(dot, dot);
+        android.graphics.drawable.LayerDrawable thumb =
+                new android.graphics.drawable.LayerDrawable(new Drawable[]{circle});
+        thumb.setLayerInset(0, -overhang, gap, -overhang, gap);
 
         sw.setTrackDrawable(track);
         sw.setThumbDrawable(thumb);
@@ -302,18 +303,12 @@ final class OneUi {
         sw.setBackground(null);
     }
 
-    private static Drawable inset(Drawable d, int inset) {
-        android.graphics.drawable.LayerDrawable l = new android.graphics.drawable.LayerDrawable(new Drawable[]{d});
-        l.setLayerInset(0, inset, inset, inset, inset);
-        return l;
-    }
-
-    private GradientDrawable pill(int fill, int stroke, int strokeColor, int w, int h) {
+    private GradientDrawable pill(int fill, int w, int h, int hPad) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(fill);
         g.setCornerRadius(h / 2f);
-        if (stroke > 0) g.setStroke(stroke, strokeColor);
         g.setSize(w, h);
+        g.setPadding(hPad, 0, hPad, 0);
         return g;
     }
 
