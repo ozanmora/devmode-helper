@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.ContentObserver;
-import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,16 +25,14 @@ import java.util.Map;
 /** Ana ekran. Gösterilen her değer telefonun ayarlarından o an okunur; her dokunuş telefona yazılır. */
 public class MainActivity extends Activity {
 
-    static final String SPONSORS_URL = "https://github.com/sponsors/ozanmora";
-    static final String COFFEE_URL = "https://buymeacoffee.com/ozanmora";
-
     private OneUi ui;
     private OneUi.Row master, syncRow, modeNameRow, autoBlockerRow, permissionRow, widgetRow;
     private final Map<Reconciler.Item, OneUi.Row> itemRows = new EnumMap<>(Reconciler.Item.class);
     private final Map<Reconciler.Item, CompoundButton.OnCheckedChangeListener> itemListeners =
             new EnumMap<>(Reconciler.Item.class);
     private CompoundButton.OnCheckedChangeListener masterListener, syncListener;
-    private TextView securityHeader, logText;
+    private TextView securityHeader;
+    private OneUi.Row logRow, aboutRow;
 
     // Sistem ayarı değişince sadece ekranı yenile; olayları arka plan işi (ModeWatchJob) işler.
     // İki yerden işlenirse Auto Blocker değişimi iki kez sayılırdı.
@@ -70,7 +67,7 @@ public class MainActivity extends Activity {
         itemRows.get(Reconciler.Item.WIFI).textArea.setOnClickListener(
                 v -> startActivity(new Intent(this, WirelessDebuggingActivity.class)));
         ui.addRows(devCard, itemRows.get(Reconciler.Item.USB), itemRows.get(Reconciler.Item.WIFI),
-                itemRows.get(Reconciler.Item.STAY_ON));
+                itemRows.get(Reconciler.Item.STAY_ON), itemRows.get(Reconciler.Item.SCREEN_ALWAYS));
         content.addView(devCard, ui.cardParams(0));
 
         content.addView(ui.category("Otomasyon"));
@@ -98,28 +95,14 @@ public class MainActivity extends Activity {
         ui.addRows(securityCard, autoBlockerRow, permissionRow);
         content.addView(securityCard, ui.cardParams(0));
 
-        // Destek bağlantıları yalnızca dokununca tarayıcıda açılır; uygulama bir şey göndermez.
-        content.addView(ui.category("Destek ol"));
-        content.addView(ui.description("DevMode Helper ücretsiz ve açık kaynak. İşine yaradıysa "
-                + "geliştirilmesini destekleyebilirsin."));
-        LinearLayout supportCard = ui.card();
-        OneUi.Row sponsorsRow = ui.row("GitHub Sponsors", false, false);
-        sponsorsRow.summary.setText("github.com/sponsors/ozanmora");
-        sponsorsRow.view.setOnClickListener(v -> openUrl(SPONSORS_URL));
-        OneUi.Row coffeeRow = ui.row("Buy Me a Coffee", false, false);
-        coffeeRow.summary.setText("buymeacoffee.com/ozanmora");
-        coffeeRow.view.setOnClickListener(v -> openUrl(COFFEE_URL));
-        ui.addRows(supportCard, sponsorsRow, coffeeRow);
-        content.addView(supportCard, ui.cardParams(ui.dp(8)));
-
-        content.addView(ui.category("Son olaylar"));
-        LinearLayout logCard = ui.card();
-        logText = ui.text("", 13, ui.textSecondary, false);
-        logText.setTypeface(Typeface.MONOSPACE);
-        logText.setLineSpacing(ui.dp(3), 1f);
-        logText.setPadding(ui.dp(24), ui.dp(16), ui.dp(24), ui.dp(16));
-        logCard.addView(logText);
-        content.addView(logCard, ui.cardParams(0));
+        // İkincil içerik kendi sayfalarında: olay günlüğü ve Hakkında (destek bağlantıları orada).
+        LinearLayout moreCard = ui.card();
+        logRow = ui.row("Olay günlüğü", false, false);
+        logRow.view.setOnClickListener(v -> startActivity(new Intent(this, LogActivity.class)));
+        aboutRow = ui.row("Hakkında", false, false);
+        aboutRow.view.setOnClickListener(v -> startActivity(new Intent(this, AboutActivity.class)));
+        ui.addRows(moreCard, logRow, aboutRow);
+        content.addView(moreCard, ui.cardParams(ui.dp(24)));
 
         wireListeners();
 
@@ -139,7 +122,7 @@ public class MainActivity extends Activity {
             getContentResolver().registerContentObserver(Settings.Global.getUriFor(k), false, observer);
         }
         for (Reconciler.Item i : Reconciler.Item.values()) {
-            getContentResolver().registerContentObserver(Settings.Global.getUriFor(i.key), false, observer);
+            getContentResolver().registerContentObserver(i.uri(), false, observer);
         }
         Reconciler.prefs(this).registerOnSharedPreferenceChangeListener(prefsListener);
         render();
@@ -205,6 +188,7 @@ public class MainActivity extends Activity {
             switch (item) {
                 case WIFI: hint = "Yalnızca daha önce eşleştirilmiş Wi‑Fi ağlarında çalışır"; break;
                 case STAY_ON: hint = "Şarj olurken ekran kapanmaz"; break;
+                case SCREEN_ALWAYS: hint = "Şarjda değilken de ekran kapanmaz; kapatınca eski zaman aşımı geri gelir"; break;
                 default: hint = "adb ile USB üzerinden bağlantı";
             }
             r.summary.setText(locked ? "Auto Blocker açıkken kullanılamaz" : hint);
@@ -242,13 +226,8 @@ public class MainActivity extends Activity {
         permissionRow.summary.setTextColor(perm ? ui.accent : ui.warn);
 
         List<String> lines = Reconciler.readLog(this);
-        StringBuilder sb = new StringBuilder();
-        int from = Math.max(0, lines.size() - 12);
-        for (int i = lines.size() - 1; i >= from; i--) {
-            sb.append(lines.get(i));
-            if (i > from) sb.append('\n');
-        }
-        logText.setText(sb.length() == 0 ? "Henüz olay yok" : sb);
+        logRow.summary.setText(lines.isEmpty() ? "Henüz olay yok" : "Son: " + lines.get(lines.size() - 1));
+        aboutRow.summary.setText("Sürüm " + OneUi.versionName(this) + " · Destek ol");
     }
 
     private void editModeName() {
@@ -279,14 +258,6 @@ public class MainActivity extends Activity {
         } else {
             android.widget.Toast.makeText(this, "Ana ekrana uzun bas › Widget'lar › DevMode Helper",
                     android.widget.Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void openUrl(String url) {
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (android.content.ActivityNotFoundException e) {
-            android.widget.Toast.makeText(this, url, android.widget.Toast.LENGTH_LONG).show();
         }
     }
 

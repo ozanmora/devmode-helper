@@ -41,6 +41,10 @@ final class OneUi {
 
     private ScrollView scroll;
     private TextView toolbarTitle, bigTitle, bigSubtitle;
+    private LinearLayout header;
+    private FrameLayout root;
+    private View toolbarView;
+    private final java.util.List<java.util.function.IntConsumer> scrollListeners = new java.util.ArrayList<>();
     private int headerHeight;
 
     OneUi(Activity a) {
@@ -76,14 +80,14 @@ final class OneUi {
     /** Sayfa iskeleti; içerik eklenecek dikey LinearLayout'u döndürür. back=null ise geri düğmesi olmaz. */
     LinearLayout scaffold(String title, Runnable back) {
         a.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        FrameLayout root = new FrameLayout(a);
+        root = new FrameLayout(a);
         root.setBackgroundColor(pageBg);
 
         LinearLayout content = new LinearLayout(a);
         content.setOrientation(LinearLayout.VERTICAL);
 
         headerHeight = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.32f);
-        LinearLayout header = new LinearLayout(a);
+        header = new LinearLayout(a);
         header.setOrientation(LinearLayout.VERTICAL);
         header.setGravity(Gravity.CENTER);
         header.setPadding(dp(24), 0, dp(24), dp(8));
@@ -127,12 +131,14 @@ final class OneUi {
         toolbarTitle.setAlpha(0f);
         toolbar.addView(toolbarTitle, new LinearLayout.LayoutParams(0, -2, 1));
         root.addView(toolbar, new FrameLayout.LayoutParams(-1, dp(56)));
+        toolbarView = toolbar;
 
         scroll.setOnScrollChangeListener((v, x, y, ox, oy) -> {
             float p = Math.min(1f, y / (float) Math.max(1, headerHeight - dp(56)));
             bigTitle.setAlpha(Math.max(0f, 1f - p * 1.6f));
             bigSubtitle.setAlpha(Math.max(0f, 1f - p * 2f));
             toolbarTitle.setAlpha(Math.max(0f, (p - 0.65f) / 0.35f));
+            for (java.util.function.IntConsumer l : scrollListeners) l.accept(y);
         });
 
         root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -157,8 +163,60 @@ final class OneUi {
         return content;
     }
 
+    /** Kaydırma konumu değişince çağrılır (y = ScrollView kaydırma miktarı). */
+    void onScroll(java.util.function.IntConsumer l) {
+        scrollListeners.add(l);
+    }
+
+    /** Araç çubuğunun altına sabitlenen katman (ör. kaydırırken üstte kalan filtre çubuğu). */
+    void pinBelowToolbar(View v) {
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT);
+        root.addView(v, lp);
+        toolbarView.addOnLayoutChangeListener((t, l, top, r, bottom, ol, ot, or, ob) -> {
+            if (v.getTranslationY() != bottom) v.setTranslationY(bottom);
+        });
+        toolbarView.bringToFront();
+    }
+
+    /** İçerikteki bir görünümün ekrandaki üst kenarı araç çubuğunun altına girdi mi? */
+    boolean isUnderToolbar(View inContent, int scrollY) {
+        return inContent.getTop() + scroll.getPaddingTop() - scrollY < toolbarView.getHeight();
+    }
+
     void setSubtitle(CharSequence s) {
         bigSubtitle.setText(s);
+    }
+
+    /** One UI "Hakkında" sayfalarındaki gibi başlığın üstünde uygulama ikonu. */
+    void setHeaderIcon(int res) {
+        ImageView icon = new ImageView(a);
+        icon.setImageResource(res);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(88), dp(88));
+        lp.bottomMargin = dp(16);
+        header.addView(icon, 0, lp);
+        // İkon kadar uzat ve üstten araç çubuğu kadar boşluk bırak; yoksa ikonun üstü çubuğun altında kalır.
+        ViewGroup.LayoutParams hp = header.getLayoutParams();
+        hp.height = headerHeight + dp(88 + 16 + 56);
+        header.setLayoutParams(hp);
+        header.setPadding(header.getPaddingLeft(), dp(56), header.getPaddingRight(), header.getPaddingBottom());
+        headerHeight = hp.height;
+    }
+
+    static String versionName(android.content.Context ctx) {
+        try {
+            return ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return "?";
+        }
+    }
+
+    /** Bağlantıyı tarayıcıda açar; uygulama kendisi ağa çıkmaz. */
+    static void openUrl(Activity a, String url) {
+        try {
+            a.startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+        } catch (android.content.ActivityNotFoundException e) {
+            android.widget.Toast.makeText(a, url, android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     // ---------------------------------------------------------------- Satırlar

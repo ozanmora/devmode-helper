@@ -15,6 +15,7 @@ import android.provider.Settings;
 public class ModeWatchJob extends JobService {
 
     private static final int JOB_ID = 1001;
+    private static final int RETRY_JOB_ID = 1003;
 
     static void schedule(Context ctx) {
         JobInfo.Builder b = new JobInfo.Builder(JOB_ID, new ComponentName(ctx, ModeWatchJob.class))
@@ -24,11 +25,20 @@ public class ModeWatchJob extends JobService {
             b.addTriggerContentUri(new JobInfo.TriggerContentUri(Settings.Global.getUriFor(key), 0));
         }
         for (Reconciler.Item i : Reconciler.Item.values()) {
-            b.addTriggerContentUri(new JobInfo.TriggerContentUri(Settings.Global.getUriFor(i.key), 0));
+            b.addTriggerContentUri(new JobInfo.TriggerContentUri(i.uri(), 0));
         }
         b.addTriggerContentUri(new JobInfo.TriggerContentUri(
                 Settings.Secure.getUriFor(Reconciler.KEY_AUTO_BLOCKER), 0));
         JobInfo job = b.build();
+        ctx.getSystemService(JobScheduler.class).schedule(job);
+    }
+
+    /** Belirli bir süre sonra durumu yeniden eşitle (ayar geri açma sınırına takılınca). */
+    static void scheduleRetry(Context ctx, long delayMs) {
+        JobInfo job = new JobInfo.Builder(RETRY_JOB_ID, new ComponentName(ctx, ModeWatchJob.class))
+                .setMinimumLatency(delayMs)
+                .setOverrideDeadline(delayMs + 5_000)
+                .build();
         ctx.getSystemService(JobScheduler.class).schedule(job);
     }
 

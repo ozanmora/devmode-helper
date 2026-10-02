@@ -24,8 +24,13 @@ DevMode Helper combines both: everything on while you develop, everything off wh
 
 ## Features
 
-- **One main switch**: USB debugging, wireless debugging and "stay awake while charging" turn on and off
-  together. Each one can also be toggled on its own.
+- **One main switch**: USB debugging, wireless debugging, "stay awake while charging" and "keep the screen
+  always on" turn on and off together. Each one can also be toggled on its own.
+- **Settings stay on while you develop**: while developer mode is active, if the system or another app turns
+  a developer setting off (for example Android turns wireless debugging off after a network change), the app
+  turns it back on. Settings you turn off on purpose in the app are left alone.
+- **Screen stays on over Wi‑Fi too**: Android's "stay awake" only works while charging, so the app also raises
+  the screen timeout to 24 hours while developer mode is on and restores your previous timeout afterwards.
 - **Samsung mode sync**: when the mode you created in Modes and Routines (default name `Development`,
   changeable in the app) turns on, the settings turn on; when the mode ends, they all turn off.
 - **Live state**: every value on screen is read from the phone's own settings at that moment; the app does
@@ -33,6 +38,9 @@ DevMode Helper combines both: everything on while you develop, everything off wh
 - **Auto Blocker awareness**: while Auto Blocker is on, Samsung forces debugging off. The app detects this,
   locks the affected switches and opens Samsung's Auto Blocker screen. As soon as you turn Auto Blocker off,
   the pending settings are applied. When the mode ends, a notification reminds you to turn Auto Blocker back on.
+- **Event log page**: what the app changed and when, grouped by day, with filters by event type
+  (mode, manual, Auto Blocker, error).
+- **About page**: version, source code, release notes, license and support links.
 - **Persistent status notification**: while any developer setting is on, a non-dismissible notification
   stays visible; tapping it opens the app and its "Kapat" (turn off) button switches everything off.
 - **Wireless debugging page**: IP address and port (from the phone's own adb mDNS announcement), a copyable
@@ -101,20 +109,26 @@ the refreshes above rather than instantly.
 - Samsung writes the active mode to the `mode_enabled` and `mode_display_name` keys under `Settings.Global`.
   The app wakes up through a `JobScheduler` content trigger when these keys change; it does not run in the
   background all the time.
-- Switching is done by writing `Settings.Global.ADB_ENABLED`, `adb_wifi_enabled` and
-  `STAY_ON_WHILE_PLUGGED_IN`. When turning off, USB debugging goes last (an attached adb session drops at
-  that moment).
+- Switching is done by writing `Settings.Global.ADB_ENABLED`, `adb_wifi_enabled`,
+  `STAY_ON_WHILE_PLUGGED_IN` and `Settings.System.SCREEN_OFF_TIMEOUT`. When turning off, USB debugging goes
+  last (an attached adb session drops at that moment).
+- The screen timeout is set to 24 hours and the previous value is saved. When turned off, the saved value is
+  restored only if the timeout is still the app's value, so a value restored by a Samsung mode is not
+  overwritten.
 - **Auto Blocker's value cannot be read**: Samsung protects the key with a signature permission, and
   Android 12+ does not let regular apps read it. So the state is inferred from the phone's own signals:
   if debugging is on, Auto Blocker is definitely off; the system notification sent when the key changes flips
   the state. A change can be missed if it is toggled very quickly twice; the state corrects itself as soon as
   debugging is on again.
+- While developer mode is active, the same content trigger fires when a developer setting changes; anything
+  turned off from outside is turned back on, at most once a minute per setting so the app does not fight the
+  system (for example on a network that is not trusted for wireless debugging).
 - Samsung does not allow other apps to open the system "Wireless debugging" detail page, so the app has its
   own detail page. Device pairing can only be done by the system, so that page links to Developer options.
 
 ## Security
 
-- `WRITE_SECURE_SETTINGS` is a powerful permission; the app uses it only for the three settings above.
+- `WRITE_SECURE_SETTINGS` is a powerful permission; the app uses it only for the four settings above.
   The code is open, and building and installing it yourself is recommended. To revoke the permission:
   ```bash
   adb shell pm revoke works.mora.devmode android.permission.WRITE_SECURE_SETTINGS
@@ -123,7 +137,7 @@ the refreshes above rather than instantly.
 - The `INTERNET` permission exists only to find the wireless debugging port: Android requires it for local
   mDNS (`NsdManager`), and the port found is checked on the phone's own IP address. The app does not connect
   to any external server and collects no data.
-- The *GitHub Sponsors* and *Buy Me a Coffee* rows in the app only open your browser when you tap them.
+- The *GitHub Sponsors* and *Buy Me a Coffee* rows on the About page only open your browser when you tap them.
 - Exported components: the launcher screen, the receiver for the system's protected boot broadcasts, and the
   widget receiver (required for widget updates; its custom action only refreshes the list). Notification
   buttons and widget taps use the app's own `PendingIntent`s.

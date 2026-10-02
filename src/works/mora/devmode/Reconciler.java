@@ -51,7 +51,9 @@ final class Reconciler {
     enum Item {
         USB("USB hata ayıklama", Settings.Global.ADB_ENABLED, 1, true),
         WIFI("Kablosuz hata ayıklama", ADB_WIFI_ENABLED, 1, true),
-        STAY_ON("Ekranı açık tut", Settings.Global.STAY_ON_WHILE_PLUGGED_IN, STAY_ON_ALL, false);
+        STAY_ON("Şarjdayken ekranı açık tut", Settings.Global.STAY_ON_WHILE_PLUGGED_IN, STAY_ON_ALL, false),
+        // "Şarjdayken" ayarı kablosuz testte işe yaramaz; ekran zaman aşımı geçici olarak 24 saate çıkarılır.
+        SCREEN_ALWAYS("Ekranı hep açık tut", Settings.System.SCREEN_OFF_TIMEOUT, SCREEN_ALWAYS_TIMEOUT, false);
 
         final String title;
         final String key;
@@ -65,13 +67,29 @@ final class Reconciler {
             this.onValue = onValue;
             this.blockedByAutoBlocker = blockedByAutoBlocker;
         }
+
+        /** Settings.System'de tutulan tek ayar ekran zaman aşımı; diğerleri Settings.Global. */
+        boolean isSystem() {
+            return this == SCREEN_ALWAYS;
+        }
+
+        android.net.Uri uri() {
+            return isSystem() ? Settings.System.getUriFor(key) : Settings.Global.getUriFor(key);
+        }
     }
+
+    static final int SCREEN_ALWAYS_TIMEOUT = 24 * 60 * 60 * 1000;
+    private static final int FALLBACK_TIMEOUT = 60 * 1000;
+    private static final String PREF_SAVED_TIMEOUT = "saved_screen_off_timeout";
 
     private static final String PREFS = "state";
     private static final String PREF_LAST_MODE = "last_mode";
     private static final String PREF_SYNC = "sync_with_mode";
     private static final String PREF_PENDING_ON = "pending_on";
     private static final String PREF_PENDING_TRIES = "pending_tries";
+    /** Geliştirme modu etkin mi (Samsung modu ya da ana anahtar açtı); etkinken kapanan ayarlar geri açılır. */
+    private static final String PREF_ACTIVE = "dev_active";
+    private static final long REAPPLY_INTERVAL_MS = 60_000;
     private static final String PREF_AB_STATE = "ab_state"; // -1 bilinmiyor, 0 kapalı, 1 açık
     private static final int MAX_PENDING_TRIES = 3;
     private static final String PREF_MODE_NAME = "mode_name";
@@ -118,7 +136,47 @@ final class Reconciler {
             }
             p.edit().putInt(PREF_PENDING_TRIES, tries + 1).apply();
             writeAll(ctx, true);
+            return;
         }
+
+        if (p.getBoolean(PREF_ACTIVE, false)) reapplyMissing(ctx);
+    }
+
+    /**
+     * Geliştirme modu etkinken sistemin ya da başka bir uygulamanın kapattığı ayarları geri açar
+     * (ör. ağ değişince sistem kablosuz hata ayıklamayı kapatır). Kullanıcının uygulamadan bilerek kapattığı
+     * ayarlara dokunmaz; sistemle çekişmemek için aynı ayarı en fazla dakikada bir kez açar.
+     */
+    private static void reapplyMissing(Context ctx) {
+        if (!canWriteSecureSettings(ctx)) return;
+        SharedPreferences p = prefs(ctx);
+        boolean abOn = Boolean.TRUE.equals(readAutoBlocker(ctx));
+        long now = System.currentTimeMillis();
+        boolean changed = false;
+        for (Item i : Item.values()) {
+            if (isOn(ctx, i) || p.getBoolean("override_" + i.name(), false)) continue;
+            if (i.blockedByAutoBlocker && abOn) continue;
+            long wait = REAPPLY_INTERVAL_MS - (now - p.getLong("reapplied_" + i.name(), 0));
+            if (wait > 0) {
+                // Sınıra takıldı: süre dolunca yeniden dene (bu arada başka değişiklik gelmeyebilir).
+                ModeWatchJob.scheduleRetry(ctx, wait);
+                continue;
+            }
+            p.edit().putLong("reapplied_" + i.name(), now).apply();
+            if (write(ctx, i, true)) {
+                log(ctx, i.title + " dışarıdan kapatıldı, yeniden açıldı");
+                changed = true;
+            }
+        }
+        if (changed) updateStatusNotification(ctx);
+    }
+
+    static boolean isActive(Context ctx) {
+        return prefs(ctx).getBoolean(PREF_ACTIVE, false);
+    }
+
+    private static void clearOverrides(SharedPreferences.Editor e) {
+        for (Item i : Item.values()) e.remove("override_" + i.name());
     }
 
     /** Ana anahtar / mod: tüm geliştirici ayarlarını aç veya kapat. */
@@ -133,6 +191,9 @@ final class Reconciler {
     private static void setAllInner(Context ctx, boolean on, String reason) {
         if (!checkPermission(ctx)) return;
         SharedPreferences p = prefs(ctx);
+        SharedPreferences.Editor active = p.edit().putBoolean(PREF_ACTIVE, on);
+        clearOverrides(active);
+        active.commit();
 
         if (on && Boolean.TRUE.equals(readAutoBlocker(ctx))) {
             // Auto Blocker'dan etkilenmeyenleri hemen aç, gerisini beklet.
@@ -167,6 +228,8 @@ final class Reconciler {
     static synchronized void setItem(Context ctx, Item item, boolean on) {
         if (!checkPermission(ctx)) return;
         if (!on) prefs(ctx).edit().putBoolean(PREF_PENDING_ON, false).apply();
+        // Mod etkinken bilerek kapatılan ayar, mod değişene kadar geri açılmaz.
+        prefs(ctx).edit().putBoolean("override_" + item.name(), !on).apply();
         if (write(ctx, item, on)) log(ctx, "Uygulamadan: " + item.title + " " + (on ? "açıldı" : "kapatıldı"));
         updateStatusNotification(ctx);
     }
@@ -244,6 +307,9 @@ final class Reconciler {
     // ---------------------------------------------------------------- Okuma (her zaman canlı)
 
     static boolean isOn(Context ctx, Item item) {
+        if (item.isSystem()) {
+            return Settings.System.getInt(ctx.getContentResolver(), item.key, 0) >= item.onValue;
+        }
         return Settings.Global.getInt(ctx.getContentResolver(), item.key, 0) != 0;
     }
 
@@ -340,6 +406,7 @@ final class Reconciler {
     }
 
     private static boolean write(Context ctx, Item item, boolean on) {
+        if (item.isSystem()) return writeScreenTimeout(ctx, on);
         int value = on ? item.onValue : 0;
         try {
             boolean ok = Settings.Global.putInt(ctx.getContentResolver(), item.key, value);
@@ -347,6 +414,29 @@ final class Reconciler {
             return ok;
         } catch (SecurityException ex) {
             log(ctx, "Yazılamadı " + item.key + "=" + value + ": " + ex.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Açarken mevcut zaman aşımını saklayıp 24 saate çıkarır. Kapatırken saklananı geri yükler, ama yalnızca
+     * değer hâlâ bizim koyduğumuz değerse: Samsung modu kendi değerini geri yüklediyse onu ezmez.
+     */
+    private static boolean writeScreenTimeout(Context ctx, boolean on) {
+        ContentResolver cr = ctx.getContentResolver();
+        String key = Settings.System.SCREEN_OFF_TIMEOUT;
+        try {
+            int current = Settings.System.getInt(cr, key, FALLBACK_TIMEOUT);
+            if (on) {
+                if (current >= SCREEN_ALWAYS_TIMEOUT) return true;
+                prefs(ctx).edit().putInt(PREF_SAVED_TIMEOUT, current).apply();
+                return Settings.System.putInt(cr, key, SCREEN_ALWAYS_TIMEOUT);
+            }
+            if (current < SCREEN_ALWAYS_TIMEOUT) return true; // zaten başka bir değere dönmüş
+            int saved = prefs(ctx).getInt(PREF_SAVED_TIMEOUT, FALLBACK_TIMEOUT);
+            return Settings.System.putInt(cr, key, saved < SCREEN_ALWAYS_TIMEOUT ? saved : FALLBACK_TIMEOUT);
+        } catch (SecurityException ex) {
+            log(ctx, "Yazılamadı " + key + ": " + ex.getMessage());
             return false;
         }
     }
