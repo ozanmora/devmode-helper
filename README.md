@@ -123,6 +123,7 @@ the refreshes above rather than instantly.
 - The `INTERNET` permission exists only to find the wireless debugging port: Android requires it for local
   mDNS (`NsdManager`), and the port found is checked on the phone's own IP address. The app does not connect
   to any external server and collects no data.
+- The *GitHub Sponsors* and *Buy Me a Coffee* rows in the app only open your browser when you tap them.
 - Exported components: the launcher screen, the receiver for the system's protected boot broadcasts, and the
   widget receiver (required for widget updates; its custom action only refreshes the list). Notification
   buttons and widget taps use the app's own `PendingIntent`s.
@@ -138,6 +139,13 @@ No Gradle needed; only the Android SDK (build-tools 36.0.0, platform android-36)
 
 `ANDROID_HOME`, `BUILD_TOOLS` and `KEYSTORE` can be set as environment variables. The default signing key is
 `~/.android/debug.keystore`; it is created if missing.
+
+## Support
+
+DevMode Helper is free and open source. If it saves you time, you can support its development:
+
+- [GitHub Sponsors](https://github.com/sponsors/ozanmora)
+- [Buy Me a Coffee](https://buymeacoffee.com/ozanmora)
 
 ## License
 

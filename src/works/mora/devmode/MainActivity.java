@@ -26,6 +26,9 @@ import java.util.Map;
 /** Ana ekran. Gösterilen her değer telefonun ayarlarından o an okunur; her dokunuş telefona yazılır. */
 public class MainActivity extends Activity {
 
+    static final String SPONSORS_URL = "https://github.com/sponsors/ozanmora";
+    static final String COFFEE_URL = "https://buymeacoffee.com/ozanmora";
+
     private OneUi ui;
     private OneUi.Row master, syncRow, modeNameRow, autoBlockerRow, permissionRow, widgetRow;
     private final Map<Reconciler.Item, OneUi.Row> itemRows = new EnumMap<>(Reconciler.Item.class);
@@ -94,6 +97,20 @@ public class MainActivity extends Activity {
         permissionRow.summary.setTextIsSelectable(true);
         ui.addRows(securityCard, autoBlockerRow, permissionRow);
         content.addView(securityCard, ui.cardParams(0));
+
+        // Destek bağlantıları yalnızca dokununca tarayıcıda açılır; uygulama bir şey göndermez.
+        content.addView(ui.category("Destek ol"));
+        content.addView(ui.description("DevMode Helper ücretsiz ve açık kaynak. İşine yaradıysa "
+                + "geliştirilmesini destekleyebilirsin."));
+        LinearLayout supportCard = ui.card();
+        OneUi.Row sponsorsRow = ui.row("GitHub Sponsors", false, false);
+        sponsorsRow.summary.setText("github.com/sponsors/ozanmora");
+        sponsorsRow.view.setOnClickListener(v -> openUrl(SPONSORS_URL));
+        OneUi.Row coffeeRow = ui.row("Buy Me a Coffee", false, false);
+        coffeeRow.summary.setText("buymeacoffee.com/ozanmora");
+        coffeeRow.view.setOnClickListener(v -> openUrl(COFFEE_URL));
+        ui.addRows(supportCard, sponsorsRow, coffeeRow);
+        content.addView(supportCard, ui.cardParams(ui.dp(8)));
 
         content.addView(ui.category("Son olaylar"));
         LinearLayout logCard = ui.card();
@@ -262,6 +279,14 @@ public class MainActivity extends Activity {
         } else {
             android.widget.Toast.makeText(this, "Ana ekrana uzun bas › Widget'lar › DevMode Helper",
                     android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (android.content.ActivityNotFoundException e) {
+            android.widget.Toast.makeText(this, url, android.widget.Toast.LENGTH_LONG).show();
         }
     }
 

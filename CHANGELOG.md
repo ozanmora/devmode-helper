@@ -2,6 +2,11 @@
 
 Sürümler [semantik sürümlemeye](https://semver.org/lang/tr/) uyar; her sürüm `vX.Y.Z` etiketiyle işaretlenir.
 
+## [1.11.0] - 2026-10-02
+### Eklendi
+- Ana ekranda "Destek ol" bölümü: GitHub Sponsors ve Buy Me a Coffee bağlantıları, dokununca tarayıcıda açılır (#5).
+- README'de destek bölümü (#5).
+
 ## [1.10.0] - 2026-09-29
 ### Eklendi
 - "Test uygulamaları" ana ekran widget'ı: adb (USB/Wi‑Fi) ile yüklenen uygulamaları ikonlarıyla listeler,
@@ -20,6 +25,7 @@ Sürümler [semantik sürümlemeye](https://semver.org/lang/tr/) uyar; her sür�
   Samsung Modlar ve Rutinler ile eşitleme, Auto Blocker algılama, kalıcı durum bildirimi,
   kablosuz hata ayıklama detay sayfası, One UI görünümü, ikon, Gradle'sız derleme ve CI.
 
+[1.11.0]: https://github.com/ozanmora/devmode-helper/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/ozanmora/devmode-helper/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/ozanmora/devmode-helper/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/ozanmora/devmode-helper/releases/tag/v1.8.0
