@@ -51,7 +51,11 @@ case "$ACTION" in
         fi
 
         echo "📦 Uygulama telefona yükleniyor..."
-        adb install -r build/devmode-helper.apk
+        if ! adb install -r build/devmode-helper.apk 2>/dev/null; then
+            echo "⚠️ İmza uyumsuzluğu nedeniyle güncelleme yapılamadı. Eski sürüm kaldırılıp temiz kurulum yapılıyor..."
+            adb uninstall works.mora.devmode 2>/dev/null || true
+            adb install build/devmode-helper.apk
+        fi
 
         echo "🔑 WRITE_SECURE_SETTINGS izni veriliyor..."
         adb shell pm grant works.mora.devmode android.permission.WRITE_SECURE_SETTINGS
