@@ -17,3 +17,7 @@ local.properties
 *.iml
 .vscode/
 .DS_Store
+
+# Fastlane geçici raporları
+fastlane/report.xml
+fastlane/test_output/

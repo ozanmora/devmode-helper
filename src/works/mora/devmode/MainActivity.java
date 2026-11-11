@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -27,12 +28,13 @@ public class MainActivity extends Activity {
 
     private OneUi ui;
     private OneUi.Row master, syncRow, modeNameRow, autoBlockerRow, permissionRow, widgetRow;
+    private LinearLayout setupBanner;
     private final Map<Reconciler.Item, OneUi.Row> itemRows = new EnumMap<>(Reconciler.Item.class);
     private final Map<Reconciler.Item, CompoundButton.OnCheckedChangeListener> itemListeners =
             new EnumMap<>(Reconciler.Item.class);
     private CompoundButton.OnCheckedChangeListener masterListener, syncListener;
     private TextView securityHeader;
-    private OneUi.Row logRow, aboutRow;
+    private OneUi.Row wizardRow, logRow, aboutRow;
 
     // Sistem ayarı değişince sadece ekranı yenile; olayları arka plan işi (ModeWatchJob) işler.
     // İki yerden işlenirse Auto Blocker değişimi iki kez sayılırdı.
@@ -55,6 +57,24 @@ public class MainActivity extends Activity {
 
         master = ui.masterBar();
         content.addView(master.view, ui.cardParams(ui.dp(4)));
+
+        setupBanner = ui.card();
+        setupBanner.setPadding(ui.dp(20), ui.dp(16), ui.dp(20), ui.dp(16));
+        LinearLayout bannerHeader = new LinearLayout(this);
+        bannerHeader.setOrientation(LinearLayout.HORIZONTAL);
+        bannerHeader.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        TextView bannerTitle = ui.text("⚠️ Kurulum Tamamlanmadı", 16, ui.warn, true);
+        bannerHeader.addView(bannerTitle, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView bannerBadge = ui.badge("Gerekli", -1);
+        bannerHeader.addView(bannerBadge);
+        setupBanner.addView(bannerHeader);
+        TextView bannerDesc = ui.text("Geliştirici ayarlarını değiştirebilmek için bilgisayardan bir kerelik ADB yetkilendirmesi gerekir.", 14, ui.textSecondary, false);
+        bannerDesc.setPadding(0, ui.dp(8), 0, ui.dp(12));
+        setupBanner.addView(bannerDesc);
+        TextView bannerBtn = ui.button("Kurulum Rehberini Aç →", true, v -> startActivity(new Intent(this, SetupWizardActivity.class)));
+        setupBanner.addView(bannerBtn);
+        content.addView(setupBanner, ui.cardParams(ui.dp(8)));
+
         content.addView(ui.description("Açıldığında tüm geliştirici ayarları etkinleşir. "
                 + "Kapatıldığında hepsi kapanır ve telefon normal kullanıma döner. "
                 + "Aşağıdaki anahtarlar telefonun anlık durumunu gösterir."));
@@ -91,23 +111,33 @@ public class MainActivity extends Activity {
         autoBlockerRow = ui.row("Auto Blocker", false, false);
         autoBlockerRow.view.setOnClickListener(v -> openAutoBlocker());
         permissionRow = ui.row("Ayar yazma izni", false, false);
-        permissionRow.summary.setTextIsSelectable(true);
+        permissionRow.view.setOnClickListener(v -> startActivity(new Intent(this, SetupWizardActivity.class)));
         ui.addRows(securityCard, autoBlockerRow, permissionRow);
         content.addView(securityCard, ui.cardParams(0));
 
-        // İkincil içerik kendi sayfalarında: olay günlüğü ve Hakkında (destek bağlantıları orada).
+        // İkincil içerik kendi sayfalarında: kurulum rehberi, olay günlüğü ve Hakkında.
         LinearLayout moreCard = ui.card();
+        wizardRow = ui.row("Kurulum rehberi", false, false);
+        wizardRow.summary.setText("Format sonrası veya yeni cihaz adımları");
+        wizardRow.view.setOnClickListener(v -> startActivity(new Intent(this, SetupWizardActivity.class)));
         logRow = ui.row("Olay günlüğü", false, false);
         logRow.view.setOnClickListener(v -> startActivity(new Intent(this, LogActivity.class)));
         aboutRow = ui.row("Hakkında", false, false);
         aboutRow.view.setOnClickListener(v -> startActivity(new Intent(this, AboutActivity.class)));
-        ui.addRows(moreCard, logRow, aboutRow);
+        ui.addRows(moreCard, wizardRow, logRow, aboutRow);
         content.addView(moreCard, ui.cardParams(ui.dp(24)));
 
         wireListeners();
 
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+
+        // İzin verilmemişse ve kullanıcı sihirbazı daha önce hiç görmediyse otomatik olarak aç
+        SharedPreferences p = Reconciler.prefs(this);
+        if (!Reconciler.canWriteSecureSettings(this) && !p.getBoolean("wizard_auto_shown", false)) {
+            p.edit().putBoolean("wizard_auto_shown", true).apply();
+            startActivity(new Intent(this, SetupWizardActivity.class));
         }
     }
 
@@ -162,14 +192,14 @@ public class MainActivity extends Activity {
         boolean hasAb = Reconciler.hasAutoBlocker(this);
         Boolean ab = hasAb ? Reconciler.readAutoBlocker(this) : Boolean.FALSE;
         boolean abOn = Boolean.TRUE.equals(ab);
-        boolean all = Reconciler.allOn(this);
+        boolean targetAll = Reconciler.allTargetOn(this);
         boolean any = Reconciler.anyOn(this);
         boolean pending = Reconciler.isPendingOn(this);
         String modeName = Reconciler.modeName(this);
 
         OneUi.setChecked(master.sw, any || pending, masterListener);
         ui.setMasterState(master, any || pending,
-                all ? "Açık" : pending ? "Auto Blocker kapatılması bekleniyor" : any ? "Kısmen açık" : "Kapalı");
+                (targetAll && any) ? "Açık" : pending ? "Auto Blocker kapatılması bekleniyor" : any ? "Kısmen açık" : "Kapalı");
 
         Boolean mode = Reconciler.readDevModeActive(this);
         ui.setSubtitle("Samsung \"" + modeName + "\" modu "
@@ -220,9 +250,9 @@ public class MainActivity extends Activity {
         widgetRow.summary.setTextColor(DevAppsWidget.hasWidgets(this) ? ui.accent : ui.textSecondary);
 
         boolean perm = Reconciler.canWriteSecureSettings(this);
-        permissionRow.summary.setText(perm ? "Verildi"
-                : "Verilmedi · Bilgisayarda çalıştır:\nadb shell pm grant " + getPackageName()
-                + " android.permission.WRITE_SECURE_SETTINGS");
+        setupBanner.setVisibility(perm ? View.GONE : View.VISIBLE);
+        permissionRow.summary.setText(perm ? "Verildi · Sistem ayarları yönetilebilir"
+                : "Verilmedi · Kurulum rehberini açmak için dokunun");
         permissionRow.summary.setTextColor(perm ? ui.accent : ui.warn);
 
         List<String> lines = Reconciler.readLog(this);

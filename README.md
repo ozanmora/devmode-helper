@@ -26,6 +26,8 @@ DevMode Helper combines both: everything on while you develop, everything off wh
 
 - **One main switch**: USB debugging, wireless debugging, "stay awake while charging" and "keep the screen
   always on" turn on and off together. Each one can also be toggled on its own.
+- **Remembers your settings**: when toggling developer mode off and on (via the main switch or Samsung Modes &
+  Routines), the app remembers your last active settings and restores only those, rather than forcing every switch on.
 - **Settings stay on while you develop**: while developer mode is active, if the system or another app turns
   a developer setting off (for example Android turns wireless debugging off after a network change), the app
   turns it back on. Settings you turn off on purpose in the app are left alone.
@@ -40,6 +42,9 @@ DevMode Helper combines both: everything on while you develop, everything off wh
   the pending settings are applied. When the mode ends, a notification reminds you to turn Auto Blocker back on.
 - **Event log page**: what the app changed and when, grouped by day, with filters by event type
   (mode, manual, Auto Blocker, error).
+- **Setup wizard**: interactive step-by-step guide after factory reset or fresh install to enable Developer
+  Options, turn on USB debugging, inspect Samsung Auto Blocker, authorize computer ADB key and run
+  the `WRITE_SECURE_SETTINGS` permission command with real-time status detection.
 - **About page**: version, source code, release notes, license and support links.
 - **Persistent status notification**: while any developer setting is on, a non-dismissible notification
   stays visible; tapping it opens the app and its "Kapat" (turn off) button switches everything off.
@@ -142,7 +147,7 @@ the refreshes above rather than instantly.
   widget receiver (required for widget updates; its custom action only refreshes the list). Notification
   buttons and widget taps use the app's own `PendingIntent`s.
 
-## Building
+## Building & Automation
 
 No Gradle needed; only the Android SDK (build-tools 36.0.0, platform android-36) and JDK 17+.
 
@@ -153,6 +158,18 @@ No Gradle needed; only the Android SDK (build-tools 36.0.0, platform android-36)
 
 `ANDROID_HOME`, `BUILD_TOOLS` and `KEYSTORE` can be set as environment variables. The default signing key is
 `~/.android/debug.keystore`; it is created if missing.
+
+### Fastlane
+
+You can also build and publish pre-releases using [Fastlane](https://fastlane.tools):
+
+```bash
+# Build the APK locally
+fastlane build
+
+# Build, tag with version and build number, and create a GitHub pre-release
+fastlane prerelease
+```
 
 ## Support
 

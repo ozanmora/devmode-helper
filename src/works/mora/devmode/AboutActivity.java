@@ -23,10 +23,13 @@ public class AboutActivity extends Activity {
                 + "açıp kapatan, Samsung Modlar ve Rutinler ile çalışan açık kaynak geliştirici aracı."));
 
         LinearLayout infoCard = ui.card();
+        OneUi.Row wizard = ui.row("Kurulum rehberi", false, false);
+        wizard.summary.setText("Format sonrası veya yeni cihaz adımları");
+        wizard.view.setOnClickListener(v -> startActivity(new android.content.Intent(this, SetupWizardActivity.class)));
         OneUi.Row source = link(ui, "Kaynak kodu", "github.com/ozanmora/devmode-helper", REPO_URL);
         OneUi.Row notes = link(ui, "Sürüm notları", "GitHub Releases", REPO_URL + "/releases");
         OneUi.Row license = link(ui, "Lisans", "MIT", REPO_URL + "/blob/main/LICENSE");
-        ui.addRows(infoCard, source, notes, license);
+        ui.addRows(infoCard, wizard, source, notes, license);
         content.addView(infoCard, ui.cardParams(ui.dp(8)));
 
         content.addView(ui.category("Destek ol"));

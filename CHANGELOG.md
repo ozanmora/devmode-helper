@@ -2,6 +2,14 @@
 
 Sürümler [semantik sürümlemeye](https://semver.org/lang/tr/) uyar; her sürüm `vX.Y.Z` etiketiyle işaretlenir.
 
+## [1.13.0] - 2026-11-11
+### Eklendi
+- Format sonrası ve ilk kurulum sihirbazı (`SetupWizardActivity`): Geliştirici seçeneklerini açma, USB hata ayıklama, Samsung Auto Blocker kontrolü, RSA yetkilendirmesi ve ADB `WRITE_SECURE_SETTINGS` iznini adım adım anlatan, durumları anlık izleyen ve ilgili sistem ayarlarına yönlendiren rehber.
+- Ana ekranda izin verilmediğinde beliren kurulum uyarı kartı ve ilk açılışta sihirbazı otomatik açma desteği.
+- "Ayar yazma izni" satırına dokunulduğunda ve Hakkında sayfasında "Kurulum rehberi" erişimi.
+- Son ayarları hatırlama: Geliştirici modu kapatılıp tekrar açıldığında (ana anahtardan veya Samsung modundan), kullanıcının en son aktif bıraktığı ayarlar (USB, kablosuz, şarjda açık tut, ekranı hep açık tut) hatırlanır ve otomatik olarak geri yüklenir.
+- Fastlane desteği: Gradle/Play Store bağımlılığı olmadan yerel build alma (`fastlane build`) ve sürüm/build numarası ile git tag koyup GitHub'a pre-release yükleme (`fastlane prerelease`).
+
 ## [1.12.0] - 2026-10-02
 ### Eklendi
 - "Ekranı hep açık tut": geliştirme modu açıkken ekran şarjda değilken de kapanmaz; ekran zaman aşımı geçici
@@ -44,6 +52,7 @@ Sürümler [semantik sürümlemeye](https://semver.org/lang/tr/) uyar; her sür�
   Samsung Modlar ve Rutinler ile eşitleme, Auto Blocker algılama, kalıcı durum bildirimi,
   kablosuz hata ayıklama detay sayfası, One UI görünümü, ikon, Gradle'sız derleme ve CI.
 
+[1.13.0]: https://github.com/ozanmora/devmode-helper/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/ozanmora/devmode-helper/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/ozanmora/devmode-helper/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/ozanmora/devmode-helper/compare/v1.9.0...v1.10.0

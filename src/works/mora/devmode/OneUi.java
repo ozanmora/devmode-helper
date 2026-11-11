@@ -37,6 +37,7 @@ final class OneUi {
     final Activity a;
     final boolean night;
     final int pageBg, cardBg, textPrimary, textSecondary, accent, warn, masterOnBg, divider, ripple;
+    final int success, successBg, warnBg;
     private final int switchOffTrack, switchThumb;
 
     private ScrollView scroll;
@@ -62,6 +63,9 @@ final class OneUi {
             divider = Color.parseColor("#3A3A3D");
             ripple = Color.parseColor("#33FFFFFF");
             switchOffTrack = Color.parseColor("#636368"); // switch_track_off_dark = gray_60
+            success = Color.parseColor("#4ADE80");
+            successBg = Color.parseColor("#142E1F");
+            warnBg = Color.parseColor("#381717");
         } else {
             pageBg = Color.parseColor("#F1F1F3");        // background_light = gray_05
             cardBg = Color.parseColor("#FCFCFF");        // surface_light = gray_01
@@ -73,6 +77,9 @@ final class OneUi {
             divider = Color.parseColor("#E4E4E7");
             ripple = Color.parseColor("#1F000000");
             switchOffTrack = Color.parseColor("#A3A3A7"); // switch_track_off = gray_40
+            success = Color.parseColor("#16A34A");
+            successBg = Color.parseColor("#DCFCE7");
+            warnBg = Color.parseColor("#FEE2E2");
         }
         switchThumb = Color.parseColor("#FCFCFF");        // switch_thumb = gray_01 (iki temada da)
     }
@@ -436,6 +443,45 @@ final class OneUi {
 
     int dp(int v) {
         return Math.round(v * a.getResources().getDisplayMetrics().density);
+    }
+
+    /** One UI tarzı yuvarlatılmış düğme (birincil: mavi dolgulu, ikincil: kart tonunda zemin). */
+    TextView button(String label, boolean primary, View.OnClickListener onClick) {
+        int bgCol = primary ? accent : (night ? Color.parseColor("#26262B") : Color.parseColor("#E6E6EB"));
+        int textCol = primary ? Color.WHITE : textPrimary;
+        TextView b = text(label, 15, textCol, true);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(18), dp(12), dp(18), dp(12));
+        GradientDrawable bg = rounded(bgCol);
+        bg.setCornerRadius(dp(16));
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(ripple), bg, null));
+        b.setClickable(true);
+        b.setFocusable(true);
+        if (onClick != null) b.setOnClickListener(onClick);
+        return b;
+    }
+
+    /** Durum göstergesi rozeti (ör. [✓ Tamamlandı], [Bekleniyor], [Gerekli]). */
+    TextView badge(String label, int state) { // 1 = başarı (yeşil), 0 = nötr/bekleniyor (mavi/sarı), -1 = uyarı (kırmızı)
+        int fg, bg;
+        if (state > 0) {
+            fg = success;
+            bg = successBg;
+        } else if (state < 0) {
+            fg = warn;
+            bg = warnBg;
+        } else {
+            fg = accent;
+            bg = night ? Color.parseColor("#1C2942") : Color.parseColor("#E5EFFF");
+        }
+        TextView b = text(label, 12, fg, true);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(10), dp(4), dp(10), dp(4));
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(bg);
+        g.setCornerRadius(dp(10));
+        b.setBackground(g);
+        return b;
     }
 
     /** Dinleyiciyi tetiklemeden anahtarı güncelle. */

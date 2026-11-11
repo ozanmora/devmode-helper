@@ -154,6 +154,7 @@ final class Reconciler {
         long now = System.currentTimeMillis();
         boolean changed = false;
         for (Item i : Item.values()) {
+            if (!shouldBeOn(ctx, i)) continue;
             if (isOn(ctx, i) || p.getBoolean("override_" + i.name(), false)) continue;
             if (i.blockedByAutoBlocker && abOn) continue;
             long wait = REAPPLY_INTERVAL_MS - (now - p.getLong("reapplied_" + i.name(), 0));
@@ -179,7 +180,7 @@ final class Reconciler {
         for (Item i : Item.values()) e.remove("override_" + i.name());
     }
 
-    /** Ana anahtar / mod: tüm geliştirici ayarlarını aç veya kapat. */
+    /** Ana anahtar / mod: geliştirici ayarlarını aç veya kapat. Son ayar durumlarını hatırlar. */
     static synchronized void setAll(Context ctx, boolean on, String reason) {
         try {
             setAllInner(ctx, on, reason);
@@ -191,14 +192,41 @@ final class Reconciler {
     private static void setAllInner(Context ctx, boolean on, String reason) {
         if (!checkPermission(ctx)) return;
         SharedPreferences p = prefs(ctx);
+
+        if (!on) {
+            // Kapatılmadan önce şu anki aktif ayarları hatırla
+            snapshotActiveStates(ctx);
+        } else {
+            // Açılırken hiçbir ayar kayıtlı değilse en azından varsayılanları (USB + STAY_ON) aç
+            boolean hasAny = false;
+            for (Item i : Item.values()) {
+                if (shouldBeOn(ctx, i)) {
+                    hasAny = true;
+                    break;
+                }
+            }
+            if (!hasAny) {
+                setSavedState(ctx, Item.USB, true);
+                setSavedState(ctx, Item.STAY_ON, true);
+            }
+        }
+
         SharedPreferences.Editor active = p.edit().putBoolean(PREF_ACTIVE, on);
         clearOverrides(active);
+        // Açılırken kapalı bırakılması gerekenler için override ekle ki reapplyMissing zorla açmasın
+        if (on) {
+            for (Item i : Item.values()) {
+                if (!shouldBeOn(ctx, i)) {
+                    active.putBoolean("override_" + i.name(), true);
+                }
+            }
+        }
         active.commit();
 
         if (on && Boolean.TRUE.equals(readAutoBlocker(ctx))) {
-            // Auto Blocker'dan etkilenmeyenleri hemen aç, gerisini beklet.
+            // Auto Blocker'dan etkilenmeyenleri ve açılması gerekenleri hemen aç, gerisini beklet.
             for (Item i : Item.values()) {
-                if (!i.blockedByAutoBlocker) write(ctx, i, true);
+                if (shouldBeOn(ctx, i) && !i.blockedByAutoBlocker) write(ctx, i, true);
             }
             p.edit().putBoolean(PREF_PENDING_ON, true).putInt(PREF_PENDING_TRIES, 0).apply();
             log(ctx, reason + ": açılacak, ama Auto Blocker açık -> kapatılması bekleniyor");
@@ -228,6 +256,8 @@ final class Reconciler {
     static synchronized void setItem(Context ctx, Item item, boolean on) {
         if (!checkPermission(ctx)) return;
         if (!on) prefs(ctx).edit().putBoolean(PREF_PENDING_ON, false).apply();
+        // Tercih edilen durumu sakla:
+        setSavedState(ctx, item, on);
         // Mod etkinken bilerek kapatılan ayar, mod değişene kadar geri açılmaz.
         prefs(ctx).edit().putBoolean("override_" + item.name(), !on).apply();
         if (write(ctx, item, on)) log(ctx, "Uygulamadan: " + item.title + " " + (on ? "açıldı" : "kapatıldı"));
@@ -318,6 +348,38 @@ final class Reconciler {
         return true;
     }
 
+    /** Tercih edilen/kayıtlı tüm ayarlar o an açık mı? */
+    static boolean allTargetOn(Context ctx) {
+        for (Item i : Item.values()) {
+            if (shouldBeOn(ctx, i) && !isOn(ctx, i)) return false;
+        }
+        return true;
+    }
+
+    private static boolean defaultStateForItem(Item item) {
+        // Varsayılan olarak USB ve şarjda açık tut; kablosuz ve 24h ekran tercihe bağlı
+        return item == Item.USB || item == Item.STAY_ON;
+    }
+
+    /** Bu ayar açık konumda mı olmalı (kullanıcının son tercihi)? */
+    static boolean shouldBeOn(Context ctx, Item item) {
+        return prefs(ctx).getBoolean("last_state_" + item.name(), defaultStateForItem(item));
+    }
+
+    static void setSavedState(Context ctx, Item item, boolean on) {
+        prefs(ctx).edit().putBoolean("last_state_" + item.name(), on).apply();
+    }
+
+    /** Kapatılmadan hemen önce aktif olan ayarların durumunu sakla. */
+    static void snapshotActiveStates(Context ctx) {
+        if (!anyOn(ctx)) return;
+        SharedPreferences.Editor editor = prefs(ctx).edit();
+        for (Item i : Item.values()) {
+            editor.putBoolean("last_state_" + i.name(), isOn(ctx, i));
+        }
+        editor.apply();
+    }
+
     static boolean anyOn(Context ctx) {
         for (Item i : Item.values()) if (isOn(ctx, i)) return true;
         return false;
@@ -390,6 +452,14 @@ final class Reconciler {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    static boolean isDevOptionsEnabled(Context ctx) {
+        return Settings.Global.getInt(ctx.getContentResolver(), Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0;
+    }
+
+    static boolean isUsbDebuggingEnabled(Context ctx) {
+        return Settings.Global.getInt(ctx.getContentResolver(), Settings.Global.ADB_ENABLED, 0) != 0;
+    }
+
     static Intent autoBlockerIntent() {
         return new Intent("com.samsung.android.rampart.action.MAIN_SETTING_ACTIVITY")
                 .setPackage("com.samsung.android.rampart")
@@ -400,8 +470,17 @@ final class Reconciler {
 
     private static void writeAll(Context ctx, boolean on) {
         Item[] items = Item.values();
-        for (int n = 0; n < items.length; n++) {
-            write(ctx, on ? items[n] : items[items.length - 1 - n], on);
+        if (on) {
+            // Açılırken yalnızca kullanıcının son kaydettiği/tercih ettiği ayarları aç
+            for (Item item : items) {
+                boolean target = shouldBeOn(ctx, item);
+                write(ctx, item, target);
+            }
+        } else {
+            // Kapanırken tüm geliştirici ayarlarını ters sırada kapat (USB en son kapanır)
+            for (int n = items.length - 1; n >= 0; n--) {
+                write(ctx, items[n], false);
+            }
         }
     }
 
